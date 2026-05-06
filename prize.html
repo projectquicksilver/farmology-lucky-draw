@@ -389,114 +389,513 @@ html, body {
 }
 @keyframes pulse { 0%,100%{opacity:0.45;} 50%{opacity:1;} }
 
-/* ── REVEAL BUTTON (post-spin) ── */
-#reveal-btn {
+/* ── REVEAL BUTTON WRAPPER — centered in bottom half ── */
+#reveal-btn-wrap {
   display: none;
-  padding: 14px 40px; border-radius: 50px; border: none;
-  background: linear-gradient(135deg, #43A047, #1B5E20);
-  color: #fff; font-family: 'Russo One', sans-serif;
-  font-size: clamp(14px, 2vw, 18px); letter-spacing: 1.5px;
-  cursor: pointer; position: relative; overflow: hidden;
-  box-shadow: 0 8px 30px rgba(67,160,71,0.6);
-  transition: all 0.22s ease;
-  animation: revealPop 0.4s cubic-bezier(0.34,1.56,0.64,1);
-  z-index: 21;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 50vh;
+  align-items: center; justify-content: center;
+  z-index: 100;
+  pointer-events: none;
 }
-@keyframes revealPop { 0%{transform:scale(0.7);opacity:0;} 100%{transform:scale(1);opacity:1;} }
-#reveal-btn.show { display: block; }
-#reveal-btn:hover { transform: translateY(-3px); box-shadow: 0 14px 40px rgba(67,160,71,0.8); }
+#reveal-btn-wrap.show { display: flex; }
 
-/* ── MODAL / CAROUSEL ── */
+/* ── REVEAL BUTTON ── */
+#reveal-btn {
+  pointer-events: all;
+  display: block;
+  padding: 20px 56px;
+  border-radius: 60px;
+  border: none;
+  background: linear-gradient(135deg, #FFD700 0%, #FF8F00 40%, #FF3B3B 100%);
+  color: #fff;
+  font-family: 'Russo One', sans-serif;
+  font-size: clamp(18px, 2.8vw, 26px);
+  letter-spacing: 2px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  /* multi-layer glow */
+  box-shadow:
+    0 0 0 0 rgba(255,193,7,0),
+    0 8px 32px rgba(255,140,0,0.55),
+    0 0 60px rgba(255,193,7,0.25);
+  animation:
+    revealPop  0.5s cubic-bezier(0.34,1.56,0.64,1) both,
+    revealGlow 2.4s ease-in-out 0.5s infinite;
+  transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.25s ease;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* Entry pop */
+@keyframes revealPop {
+  0%   { transform: scale(0.5) translateY(40px); opacity: 0; }
+  70%  { transform: scale(1.08) translateY(-6px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+/* Pulsing glow breathe */
+@keyframes revealGlow {
+  0%,100% {
+    box-shadow:
+      0 0 0  4px rgba(255,193,7,0.15),
+      0 8px 32px rgba(255,140,0,0.55),
+      0 0 60px rgba(255,193,7,0.2);
+  }
+  50% {
+    box-shadow:
+      0 0 0 14px rgba(255,193,7,0.08),
+      0 12px 55px rgba(255,140,0,0.8),
+      0 0 100px rgba(255,193,7,0.45);
+  }
+}
+
+/* Hover: lift + supercharge glow */
+#reveal-btn:hover {
+  transform: translateY(-6px) scale(1.06);
+  box-shadow:
+    0 0 0 18px rgba(255,193,7,0.06),
+    0 20px 60px rgba(255,140,0,0.9),
+    0 0 120px rgba(255,193,7,0.55);
+}
+#reveal-btn:active { transform: scale(0.95); }
+
+/* Rotating shine sweep */
+#reveal-btn::before {
+  content: '';
+  position: absolute; top: 0; left: -100%;
+  width: 60%; height: 100%;
+  background: linear-gradient(110deg, transparent 20%, rgba(255,255,255,0.45) 50%, transparent 80%);
+  animation: btnSheen 2.2s ease-in-out infinite;
+}
+@keyframes btnSheen {
+  0%,30% { left: -100%; }
+  60%     { left: 130%; }
+  100%    { left: 130%; }
+}
+
+/* Ring pulse rings emanating outward */
+#reveal-btn::after {
+  content: '';
+  position: absolute; inset: -4px;
+  border-radius: 64px;
+  border: 2.5px solid rgba(255,193,7,0.6);
+  animation: ringExpand 2.4s ease-out 0.5s infinite;
+  pointer-events: none;
+}
+@keyframes ringExpand {
+  0%   { inset: -2px;  opacity: 0.9; }
+  100% { inset: -22px; opacity: 0; border-color: rgba(255,193,7,0); }
+}
+
+/* ══════════════════════════════════════════
+   MODAL / CAROUSEL  — premium redesign
+══════════════════════════════════════════ */
 #modal-overlay {
   display: none;
   position: fixed; inset: 0; z-index: 300;
-  background: rgba(4,12,40,0.85);
-  backdrop-filter: blur(10px);
+  background: rgba(2, 8, 32, 0.92);
+  backdrop-filter: blur(18px) saturate(1.4);
   align-items: center; justify-content: center;
+  padding: 16px;
 }
 #modal-overlay.open { display: flex; }
 
-.modal {
-  background: linear-gradient(160deg, rgba(255,255,255,0.1) 0%, rgba(6,26,80,0.97) 100%);
-  border: 1.5px solid rgba(255,193,7,0.35);
-  border-radius: 24px;
-  padding: 28px 24px 22px;
-  width: min(92vw, 620px);
-  box-shadow: 0 24px 80px rgba(0,0,0,0.8), 0 0 60px rgba(255,193,7,0.12);
-  position: relative;
-  animation: modalIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
+/* Outer ambient glow behind card */
+.modal-glow {
+  position: absolute; inset: -60px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center,
+    rgba(255,193,7,0.07) 0%,
+    rgba(79,195,247,0.04) 40%,
+    transparent 70%);
+  animation: modalAura 3s ease-in-out infinite;
+  pointer-events: none;
 }
-@keyframes modalIn { 0%{transform:scale(0.8) translateY(40px);opacity:0;} 100%{transform:scale(1) translateY(0);opacity:1;} }
+@keyframes modalAura {
+  0%,100% { transform: scale(0.96); opacity: 0.7; }
+  50%      { transform: scale(1.04); opacity: 1; }
+}
 
+.modal {
+  position: relative;
+  background: linear-gradient(
+    145deg,
+    rgba(12, 28, 80, 0.98) 0%,
+    rgba(6, 16, 52, 0.99) 60%,
+    rgba(10, 22, 68, 0.98) 100%
+  );
+  border: 1.5px solid rgba(255, 193, 7, 0.3);
+  border-radius: 28px;
+  padding: 30px 26px 24px;
+  width: min(96vw, 740px);
+  overflow: hidden;
+  box-shadow:
+    0 40px 100px rgba(0,0,0,0.9),
+    0 0 0 1px rgba(255,255,255,0.04),
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 0 60px rgba(255,193,7,0.06);
+  animation: modalIn 0.5s cubic-bezier(0.34,1.4,0.64,1);
+}
+/* Animated top-edge light streak */
+.modal::before {
+  content: '';
+  position: absolute; top: 0; left: -60%; right: -60%; height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255,193,7,0.6) 35%,
+    rgba(255,255,255,0.9) 50%,
+    rgba(255,193,7,0.6) 65%,
+    transparent 100%);
+  animation: topEdgeSheen 4s ease-in-out infinite;
+}
+@keyframes topEdgeSheen {
+  0%,100% { opacity: 0.3; transform: scaleX(0.6); }
+  50%      { opacity: 1;   transform: scaleX(1); }
+}
+/* Subtle corner glow */
+.modal::after {
+  content: '';
+  position: absolute; top: -80px; right: -80px;
+  width: 200px; height: 200px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,193,7,0.08) 0%, transparent 70%);
+  pointer-events: none;
+  animation: cornerGlow 3s ease-in-out 1s infinite;
+}
+@keyframes cornerGlow {
+  0%,100% { opacity: 0.5; transform: scale(0.8); }
+  50%      { opacity: 1;   transform: scale(1.2); }
+}
+
+@keyframes modalIn {
+  0%  { transform: scale(0.8) translateY(60px); opacity: 0; }
+  70% { transform: scale(1.02) translateY(-4px); opacity: 1; }
+  100%{ transform: scale(1)   translateY(0);    opacity: 1; }
+}
+
+/* ── HEADER ── */
 .modal-header {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 22px; position: relative;
 }
 .modal-title {
   font-family: 'Barlow Condensed', sans-serif; font-weight: 900;
-  font-size: clamp(16px,2.5vw,22px); color: var(--gold); letter-spacing: 1px;
+  font-size: clamp(20px, 3vw, 28px);
+  background: linear-gradient(135deg, #FFE082, #FFC107, #FF8F00);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  letter-spacing: 1.5px;
+  filter: drop-shadow(0 0 12px rgba(255,193,7,0.4));
 }
 .modal-close {
-  width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid rgba(255,193,7,0.4);
-  background: rgba(255,193,7,0.1); color: var(--gold);
-  font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
-  transition: all 0.2s; font-family: sans-serif; line-height: 1;
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 1.5px solid rgba(255,193,7,0.35);
+  background: rgba(255,193,7,0.07);
+  color: rgba(255,193,7,0.8);
+  font-size: 18px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1);
+  font-family: sans-serif; line-height: 1; position: relative;
 }
-.modal-close:hover { background: rgba(255,193,7,0.25); }
+.modal-close::before {
+  content: '';
+  position: absolute; inset: -4px; border-radius: 50%;
+  border: 1.5px solid rgba(255,193,7,0);
+  transition: all 0.25s ease;
+}
+.modal-close:hover {
+  background: rgba(255,193,7,0.18);
+  border-color: rgba(255,193,7,0.7);
+  color: #FFD700;
+  transform: scale(1.15) rotate(90deg);
+  box-shadow: 0 0 20px rgba(255,193,7,0.3);
+}
+.modal-close:hover::before {
+  inset: -6px;
+  border-color: rgba(255,193,7,0.25);
+}
 
-/* Winners table */
+/* ── WINNERS TABLE ── */
 .winners-table {
-  width: 100%; border-collapse: collapse;
-  font-family: 'Nunito', sans-serif; font-size: clamp(11px, 1.5vw, 13px);
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 7px;
 }
+
+/* Header */
 .winners-table thead th {
   font-family: 'Barlow Condensed', sans-serif; font-weight: 900;
-  font-size: clamp(10px, 1.4vw, 13px); letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--gold); padding: 6px 8px; text-align: left;
-  border-bottom: 1px solid rgba(255,193,7,0.25);
-}
-.winners-table tbody tr {
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  transition: background 0.15s;
-}
-.winners-table tbody tr:hover { background: rgba(255,193,7,0.07); }
-.winners-table tbody td {
-  padding: 9px 8px; color: rgba(255,255,255,0.85); vertical-align: middle;
-}
-.row-num {
-  width: 28px; height: 28px; border-radius: 50%;
-  background: rgba(255,193,7,0.15); border: 1px solid rgba(255,193,7,0.3);
-  display: flex; align-items: center; justify-content: center;
-  font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 900;
-  color: var(--gold);
+  font-size: clamp(11px, 1.6vw, 14px);
+  letter-spacing: 2.5px; text-transform: uppercase;
+  color: rgba(255,193,7,0.65);
+  padding: 6px 14px 10px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255,193,7,0.15);
 }
 
-/* Pagination */
+/* ── BODY ROWS — glassmorphism cards ── */
+.winners-table tbody tr {
+  position: relative;
+  background: rgba(255,255,255,0.035);
+  cursor: pointer;
+  transition:
+    transform      0.32s cubic-bezier(0.34,1.28,0.64,1),
+    box-shadow     0.32s ease,
+    background     0.32s ease;
+  animation: rowIn 0.45s cubic-bezier(0.34,1.2,0.64,1) both;
+}
+
+/* Staggered row entrance */
+.winners-table tbody tr:nth-child(1) { animation-delay: 0.05s; }
+.winners-table tbody tr:nth-child(2) { animation-delay: 0.12s; }
+.winners-table tbody tr:nth-child(3) { animation-delay: 0.19s; }
+.winners-table tbody tr:nth-child(4) { animation-delay: 0.26s; }
+.winners-table tbody tr:nth-child(5) { animation-delay: 0.33s; }
+
+@keyframes rowIn {
+  0%  { opacity: 0; transform: translateY(20px) scale(0.97); }
+  60% { opacity: 1; transform: translateY(-3px) scale(1.005); }
+  100%{ opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+/* Hover — subtle lift + left blue-gold accent bar */
+.winners-table tbody tr:hover {
+  background: linear-gradient(
+    100deg,
+    rgba(255,193,7,0.07) 0%,
+    rgba(79,195,247,0.04) 50%,
+    rgba(255,193,7,0.03) 100%
+  );
+  transform: translateY(-3px) scale(1.008);
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.35),
+    0 2px 0 rgba(255,193,7,0.0),
+    inset 3px 0 0 rgba(255,193,7,0.55),
+    inset 0 1px 0 rgba(255,255,255,0.07),
+    inset 0 -1px 0 rgba(0,0,0,0.1);
+}
+/* Left accent bar sweeps in */
+.winners-table tbody tr td:first-child {
+  position: relative;
+}
+.winners-table tbody tr td:first-child::before {
+  content: '';
+  position: absolute; left: 0; top: 8px; bottom: 8px;
+  width: 0; border-radius: 2px;
+  background: linear-gradient(180deg, #FFD700, #FF8F00);
+  transition: width 0.28s ease;
+  box-shadow: 0 0 10px rgba(255,193,7,0.6);
+}
+.winners-table tbody tr:hover td:first-child::before { width: 3px; }
+
+/* ── WINNER-HIGHLIGHT ROW (1st on each page) ── */
+.winners-table tbody tr.winner-highlight {
+  background: linear-gradient(
+    100deg,
+    rgba(255,193,7,0.12) 0%,
+    rgba(255,140,0,0.06) 60%,
+    rgba(255,193,7,0.04) 100%
+  );
+  box-shadow:
+    0 0 0 1px rgba(255,193,7,0.28),
+    0 6px 24px rgba(255,193,7,0.1),
+    inset 0 1px 0 rgba(255,193,7,0.15);
+  animation: rowIn 0.45s cubic-bezier(0.34,1.2,0.64,1) 0.05s both,
+             hlPulse 3s ease-in-out 0.8s infinite;
+}
+@keyframes hlPulse {
+  0%,100% {
+    box-shadow:
+      0 0 0 1px rgba(255,193,7,0.25),
+      0 6px 24px rgba(255,193,7,0.08),
+      inset 0 1px 0 rgba(255,193,7,0.12);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1.5px rgba(255,193,7,0.55),
+      0 10px 36px rgba(255,193,7,0.22),
+      inset 0 1px 0 rgba(255,255,255,0.12);
+  }
+}
+.winners-table tbody tr.winner-highlight:hover {
+  transform: translateY(-4px) scale(1.012);
+  box-shadow:
+    0 0 0 1.5px rgba(255,193,7,0.6),
+    0 14px 44px rgba(255,193,7,0.25),
+    inset 3px 0 0 #FFD700,
+    inset 0 1px 0 rgba(255,255,255,0.1);
+}
+
+/* ── TD CELLS ── */
+.winners-table tbody td {
+  padding: 15px 14px;
+  font-size: clamp(13px, 1.75vw, 16px);
+  color: rgba(255,255,255,0.82);
+  vertical-align: middle;
+  border-top:    1px solid rgba(255,255,255,0.04);
+  border-bottom: 1px solid rgba(0,0,0,0.12);
+  transition: color 0.28s ease;
+}
+.winners-table tbody td:first-child {
+  border-radius: 14px 0 0 14px;
+  border-left: 1px solid rgba(255,255,255,0.04);
+  overflow: hidden;
+}
+.winners-table tbody td:last-child {
+  border-radius: 0 14px 14px 0;
+  border-right: 1px solid rgba(255,255,255,0.04);
+}
+.winners-table tbody tr:hover td { color: rgba(255,255,255,0.95); }
+
+/* Row number badge */
+.row-num {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(255,193,7,0.1);
+  border: 1.5px solid rgba(255,193,7,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 900;
+  color: rgba(255,193,7,0.8);
+  transition: all 0.28s ease;
+}
+.winners-table tbody tr:hover .row-num {
+  background: rgba(255,193,7,0.2);
+  border-color: rgba(255,193,7,0.7);
+  color: #FFD700;
+  box-shadow: 0 0 14px rgba(255,193,7,0.35);
+  transform: scale(1.12);
+}
+.winner-highlight .row-num {
+  background: linear-gradient(135deg, #FFC107, #FF8F00);
+  border-color: #FFD700;
+  color: #1a0800;
+  box-shadow: 0 0 16px rgba(255,193,7,0.45);
+}
+
+/* Farmer name */
+.winner-name {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: clamp(15px, 2.1vw, 19px);
+  font-weight: 900; color: rgba(255,255,255,0.92);
+  letter-spacing: 0.3px;
+  transition: color 0.28s ease;
+}
+.winners-table tbody tr:hover .winner-name { color: #fff; }
+.winner-highlight .winner-name { color: #FFE082; }
+.winner-highlight:hover .winner-name { color: #fff; }
+
+/* Other fields */
+.winner-mobile {
+  font-weight: 700; color: rgba(255,255,255,0.5);
+  font-size: clamp(12px,1.55vw,14px); letter-spacing: 0.3px;
+  font-family: 'Nunito', sans-serif;
+  transition: color 0.28s ease;
+}
+.winner-district {
+  font-weight: 700; color: rgba(255,255,255,0.5);
+  font-size: clamp(12px,1.55vw,14px);
+  font-family: 'Nunito', sans-serif;
+  transition: color 0.28s ease;
+}
+.winner-state {
+  font-family: 'Barlow Condensed', sans-serif; font-weight: 900;
+  font-size: clamp(13px,1.75vw,16px); letter-spacing: 0.8px;
+  color: rgba(255,193,7,0.7);
+  transition: color 0.28s ease;
+}
+.winners-table tbody tr:hover .winner-mobile,
+.winners-table tbody tr:hover .winner-district { color: rgba(255,255,255,0.75); }
+.winners-table tbody tr:hover .winner-state { color: var(--gold-lt); }
+
+/* ── PAGINATION ── */
 .pagination {
   display: flex; align-items: center; justify-content: space-between;
-  margin-top: 16px; gap: 10px;
+  margin-top: 20px; gap: 12px;
 }
 .page-info {
-  font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700;
-  color: rgba(255,255,255,0.4); letter-spacing: 1px;
+  font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 900;
+  color: rgba(255,255,255,0.3); letter-spacing: 2.5px; text-align: center; flex: 1;
 }
-.page-btn {
-  padding: 8px 20px; border-radius: 50px; border: 1.5px solid rgba(255,193,7,0.4);
-  background: rgba(255,193,7,0.08); color: var(--gold);
-  font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 900;
-  letter-spacing: 1px; cursor: pointer; transition: all 0.2s;
-}
-.page-btn:hover:not(:disabled) { background: rgba(255,193,7,0.2); }
-.page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-/* Spin celebration particles */
-.burst-p {
-  position:fixed; border-radius:50%; pointer-events:none;
-  animation:burstFly var(--dur,0.65s) ease-out forwards; z-index:9999;
+/* Pagination buttons */
+.page-btn {
+  padding: 10px 26px; border-radius: 50px;
+  border: 1.5px solid rgba(255,193,7,0.3);
+  background: rgba(255,193,7,0.05);
+  color: rgba(255,193,7,0.7);
+  font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 900;
+  letter-spacing: 1.5px; cursor: pointer;
+  position: relative; overflow: hidden;
+  transition:
+    transform   0.28s cubic-bezier(0.34,1.56,0.64,1),
+    box-shadow  0.28s ease,
+    background  0.28s ease,
+    border-color 0.28s ease,
+    color       0.28s ease;
 }
-@keyframes burstFly {
-  0%  { transform:translate(0,0) scale(1); opacity:1; }
-  100%{ transform:translate(var(--dx),var(--dy)) scale(0); opacity:0; }
+/* Sheen sweep on buttons */
+.page-btn::before {
+  content: '';
+  position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
+  background: linear-gradient(110deg, transparent, rgba(255,255,255,0.18), transparent);
+  transition: left 0s;
+}
+.page-btn:hover:not(:disabled)::before {
+  left: 160%; transition: left 0.45s ease;
+}
+.page-btn:hover:not(:disabled) {
+  background: rgba(255,193,7,0.14);
+  border-color: rgba(255,193,7,0.65);
+  color: #FFD700;
+  transform: translateY(-2px) scale(1.05);
+  box-shadow:
+    0 6px 24px rgba(255,193,7,0.2),
+    0 0 0 1px rgba(255,193,7,0.15),
+    inset 0 1px 0 rgba(255,255,255,0.1);
+}
+.page-btn:active:not(:disabled) { transform: scale(0.96); }
+.page-btn:disabled { opacity: 0.2; cursor: not-allowed; }
+
+/* ── CELEBRATION PARTICLES ── */
+/* Confetti pieces */
+.cel-p {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  animation: celFly var(--dur, 1.2s) ease-out var(--delay, 0s) both;
+}
+@keyframes celFly {
+  0%   { transform: translate(0,0) rotate(0deg) scale(1); opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) rotate(var(--rot, 360deg)) scale(0.2); opacity: 0; }
+}
+
+/* Spark streaks */
+.cel-spark {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  width: 3px;
+  border-radius: 2px;
+  transform-origin: bottom center;
+  animation: sparkShoot var(--dur, 0.7s) ease-out var(--delay, 0s) both;
+}
+@keyframes sparkShoot {
+  0%   { transform: translate(0,0) scaleY(1) rotate(var(--ang,0deg)); opacity: 1; }
+  100% { transform: translate(var(--dx),var(--dy)) scaleY(0.1) rotate(var(--ang,0deg)); opacity: 0; }
+}
+
+/* Ring shockwave */
+.cel-ring {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9998;
+  border-radius: 50%;
+  border: 3px solid;
+  animation: ringShock var(--dur,0.8s) ease-out var(--delay,0s) both;
+}
+@keyframes ringShock {
+  0%   { transform: translate(-50%,-50%) scale(0); opacity: 0.9; }
+  100% { transform: translate(-50%,-50%) scale(1); opacity: 0; }
 }
 </style>
 </head>
@@ -576,15 +975,18 @@ html, body {
 
     </div>
 
-    <!-- REVEAL BUTTON -->
-    <button id="reveal-btn" onclick="openModal()">🏆 Reveal Winners!</button>
-
+    <!-- REVEAL BUTTON — centered in bottom half via fixed wrapper -->
   </div>
 </section>
+
+<div id="reveal-btn-wrap">
+  <button id="reveal-btn" onclick="openModal()">🏆 &nbsp;REVEAL WINNERS!</button>
+</div>
 
 <!-- WINNERS MODAL -->
 <div id="modal-overlay">
   <div class="modal">
+    <div class="modal-glow"></div>
     <div class="modal-header">
       <div class="modal-title" id="modal-title">🏆 Lucky Draw Winners</div>
       <button class="modal-close" onclick="closeModal()">✕</button>
@@ -892,35 +1294,117 @@ function spinWheel() {
 
 function onSpinEnd() {
   document.getElementById('wheel-label').textContent = '🎉 SPIN COMPLETE!';
-  // Burst particles from center of wheel
-  const wc = document.getElementById('wheel-container');
+
+  const wc   = document.getElementById('wheel-container');
   const rect = wc.getBoundingClientRect();
-  const cx = rect.left + rect.width/2;
-  const cy = rect.top + rect.height/2;
-  const pcols = ['#FFD700','#FF8F00','#FFE082','#FFC107','#FF3B3B','#fff','#6FE7FF','#FF6B35'];
-  for(let i=0;i<30;i++){
-    const p=document.createElement('div'); p.className='burst-p';
-    const angle=(i/30)*360*Math.PI/180;
-    const dist=70+Math.random()*120;
-    const sz=5+Math.random()*10;
-    p.style.cssText=`left:${cx-sz/2}px;top:${cy-sz/2}px;width:${sz}px;height:${sz}px;background:${pcols[i%pcols.length]};--dx:${Math.cos(angle)*dist}px;--dy:${Math.sin(angle)*dist}px;--dur:${0.5+Math.random()*0.4}s;`;
-    document.body.appendChild(p);
-    setTimeout(()=>p.remove(),1000);
+  const ox   = rect.left + rect.width  / 2;
+  const oy   = rect.top  + rect.height / 2;
+
+  const COLS = ['#FFD700','#FF8F00','#FFE082','#FFC107','#FF3B3B','#ffffff','#6FE7FF','#FF6B35','#E91E8C','#11B87F','#9B27AF'];
+
+  /* ── 1. RING SHOCKWAVES (3 expanding rings) ── */
+  [0, 120, 240].forEach((delay, ri) => {
+    const ring = document.createElement('div');
+    ring.className = 'cel-ring';
+    const size = 60 + ri * 30;
+    ring.style.cssText = `
+      left:${ox}px; top:${oy}px;
+      width:${size}px; height:${size}px;
+      border-color:${['#FFD700','#FF8F00','#ffffff'][ri]};
+      --delay:${delay}ms; --dur:0.9s;
+    `;
+    document.body.appendChild(ring);
+    setTimeout(() => ring.remove(), 1200 + delay);
+  });
+
+  /* ── 2. SPARK STREAKS (radial lines shooting out) ── */
+  const SPARK_COUNT = 24;
+  for (let i = 0; i < SPARK_COUNT; i++) {
+    const spark = document.createElement('div');
+    spark.className = 'cel-spark';
+    const angle  = (i / SPARK_COUNT) * Math.PI * 2;
+    const dist   = 80 + Math.random() * 140;
+    const len    = 12 + Math.random() * 28;
+    const delay  = Math.random() * 180;
+    spark.style.cssText = `
+      left:${ox}px; top:${oy}px;
+      height:${len}px;
+      background:${COLS[i % COLS.length]};
+      --dx:${Math.cos(angle)*dist}px;
+      --dy:${Math.sin(angle)*dist}px;
+      --ang:${(angle * 180/Math.PI) + 90}deg;
+      --dur:${0.5 + Math.random() * 0.5}s;
+      --delay:${delay}ms;
+    `;
+    document.body.appendChild(spark);
+    setTimeout(() => spark.remove(), 1000 + delay);
   }
 
-  // Fade out wheel and show reveal button
+  /* ── 3. CONFETTI BURST (round + rect pieces flying out) ── */
+  const CONF_COUNT = 60;
+  for (let i = 0; i < CONF_COUNT; i++) {
+    const p     = document.createElement('div');
+    p.className = 'cel-p';
+    const angle  = (i / CONF_COUNT) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+    const dist   = 100 + Math.random() * 220;
+    const sz     = 5 + Math.random() * 10;
+    const isRect = Math.random() > 0.45;
+    const delay  = Math.random() * 250;
+    const rot    = (Math.random() - 0.5) * 720;
+    p.style.cssText = `
+      left:${ox - sz/2}px; top:${oy - sz/2}px;
+      width:${sz}px; height:${isRect ? sz * 2.5 : sz}px;
+      border-radius:${isRect ? '2px' : '50%'};
+      background:${COLS[i % COLS.length]};
+      --dx:${Math.cos(angle)*dist}px;
+      --dy:${Math.sin(angle)*dist}px;
+      --rot:${rot}deg;
+      --dur:${0.8 + Math.random() * 0.7}s;
+      --delay:${delay}ms;
+    `;
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 1600 + delay);
+  }
+
+  /* ── 4. SECONDARY CONFETTI WAVE (falls from top of screen) ── */
   setTimeout(() => {
-    document.getElementById('wheel-zone').style.transition = 'opacity 0.5s';
-    document.getElementById('wheel-zone').style.opacity = '0';
+    for (let i = 0; i < 40; i++) {
+      const p     = document.createElement('div');
+      p.className = 'cel-p';
+      const sx    = Math.random() * window.innerWidth;
+      const dist  = window.innerHeight * 0.6 + Math.random() * window.innerHeight * 0.3;
+      const sz    = 5 + Math.random() * 9;
+      const delay = Math.random() * 600;
+      const rot   = (Math.random() - 0.5) * 540;
+      p.style.cssText = `
+        left:${sx}px; top:${-10}px;
+        width:${sz}px; height:${Math.random()>0.5 ? sz*2.5 : sz}px;
+        border-radius:${Math.random()>0.5 ? '50%' : '2px'};
+        background:${COLS[Math.floor(Math.random()*COLS.length)]};
+        --dx:${(Math.random()-0.5)*120}px;
+        --dy:${dist}px;
+        --rot:${rot}deg;
+        --dur:${1.2 + Math.random() * 0.8}s;
+        --delay:${delay}ms;
+      `;
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 2200 + delay);
+    }
+  }, 300);
+
+  /* ── 5. Fade wheel → show centered reveal button ── */
+  setTimeout(() => {
+    const wz = document.getElementById('wheel-zone');
+    wz.style.transition = 'opacity 0.6s';
+    wz.style.opacity    = '0';
     setTimeout(() => {
-      document.getElementById('wheel-zone').classList.remove('active');
-      document.getElementById('wheel-zone').style.opacity = '';
-      document.getElementById('wheel-zone').style.transition = '';
-      const revBtn = document.getElementById('reveal-btn');
-      revBtn.classList.add('show');
+      wz.classList.remove('active');
+      wz.style.opacity    = '';
+      wz.style.transition = '';
+      document.getElementById('reveal-btn-wrap').classList.add('show');
       document.getElementById('div-label').textContent = '✦ Winners Revealed! ✦';
-    }, 500);
-  }, 800);
+    }, 600);
+  }, 900);
 }
 
 /* ══════════════════════════════════════════
@@ -986,14 +1470,17 @@ function renderPage() {
 
   const tbody = document.getElementById('winners-tbody');
   tbody.innerHTML = '';
+
   pageData.forEach((w, i) => {
+    const isFirst = (i === 0); // highlight top row of each page
     const tr = document.createElement('tr');
+    if (isFirst) tr.classList.add('winner-highlight');
     tr.innerHTML = `
       <td><div class="row-num">${start+i+1}</div></td>
-      <td><strong style="color:#fff">${w.name}</strong></td>
-      <td style="color:rgba(255,255,255,0.65)">${w.mobile}</td>
-      <td style="color:rgba(255,255,255,0.65)">${w.district}</td>
-      <td style="color:var(--gold-lt)">${w.state}</td>
+      <td><div class="winner-name">${isFirst ? '🏆 ' : ''}${w.name}</div></td>
+      <td><div class="winner-mobile">${w.mobile}</div></td>
+      <td><div class="winner-district">${w.district}</div></td>
+      <td><div class="winner-state">${w.state}</div></td>
     `;
     tbody.appendChild(tr);
   });
