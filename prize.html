@@ -337,39 +337,74 @@ html, body {
   display: none;
   position: absolute; inset: 0;
   align-items: center; justify-content: center;
-  flex-direction: column; gap: 12px;
+  flex-direction: column; gap: 14px;
   z-index: 20;
 }
 #wheel-zone.active { display: flex; }
 
+/* Outer glow halo around entire wheel assembly */
+.wheel-halo {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+.wheel-halo::before {
+  content: '';
+  position: absolute;
+  inset: -20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,193,7,0.18) 0%, rgba(79,195,247,0.08) 50%, transparent 75%);
+  animation: haloBreath 2s ease-in-out infinite;
+  z-index: 0;
+}
+@keyframes haloBreath {
+  0%,100% { transform: scale(0.95); opacity: 0.7; }
+  50%      { transform: scale(1.08); opacity: 1; }
+}
+
 .wheel-container {
   position: relative;
-  width: clamp(180px, 28vw, 240px);
-  height: clamp(180px, 28vw, 240px);
+  width: clamp(200px, 30vw, 270px);
+  height: clamp(200px, 30vw, 270px);
   cursor: pointer;
+  z-index: 1;
 }
 .wheel-container canvas {
   border-radius: 50%;
-  box-shadow: 0 0 40px rgba(255,193,7,0.6), 0 0 80px rgba(255,193,7,0.2);
+  display: block;
 }
-/* Pointer arrow */
+
+/* Outer decorative ring (CSS, not canvas) */
+.wheel-outer-ring {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  background: linear-gradient(#061A4A,#061A4A) padding-box,
+              conic-gradient(#FFD700, #FF8F00, #FFE082, #FFC107, #FF6B35, #FFD700) border-box;
+  animation: ringRotate 8s linear infinite;
+  pointer-events: none;
+  z-index: 3;
+}
+@keyframes ringRotate { to { filter: hue-rotate(30deg); } }
+
+/* Pointer arrow — styled as a metallic spike */
 .wheel-arrow {
-  position: absolute; top: -18px; left: 50%;
+  position: absolute;
+  top: -22px; left: 50%;
   transform: translateX(-50%);
-  width: 0; height: 0;
-  border-left: 12px solid transparent;
-  border-right: 12px solid transparent;
-  border-top: 26px solid #FFD700;
-  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6));
-  z-index: 5;
+  z-index: 10;
+  width: 28px; height: 36px;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.7));
 }
+
 .wheel-label {
   font-family: 'Barlow Condensed', sans-serif;
-  font-size: clamp(11px, 1.6vw, 14px); font-weight: 900;
-  color: rgba(255,255,255,0.5); letter-spacing: 2px; text-transform: uppercase;
+  font-size: clamp(12px, 1.8vw, 15px); font-weight: 900;
+  color: rgba(255,255,255,0.55); letter-spacing: 3px; text-transform: uppercase;
   animation: pulse 1.5s ease-in-out infinite;
+  text-shadow: 0 0 20px rgba(255,193,7,0.4);
 }
-@keyframes pulse { 0%,100%{opacity:0.5;} 50%{opacity:1;} }
+@keyframes pulse { 0%,100%{opacity:0.45;} 50%{opacity:1;} }
 
 /* ── REVEAL BUTTON (post-spin) ── */
 #reveal-btn {
@@ -547,11 +582,24 @@ html, body {
 
       <!-- WHEEL ZONE (hidden by default) -->
       <div id="wheel-zone">
-        <div class="wheel-container" id="wheel-container">
-          <div class="wheel-arrow"></div>
-          <canvas id="wheel-canvas"></canvas>
+        <div class="wheel-halo">
+          <div class="wheel-container" id="wheel-container">
+            <div class="wheel-outer-ring"></div>
+            <svg class="wheel-arrow" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="arrowGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#FFE082"/>
+                  <stop offset="50%" stop-color="#FFC107"/>
+                  <stop offset="100%" stop-color="#FF8F00"/>
+                </linearGradient>
+              </defs>
+              <polygon points="14,36 0,8 14,0 28,8" fill="url(#arrowGrad)" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
+              <ellipse cx="14" cy="8" rx="5" ry="5" fill="#FFE082" opacity="0.8"/>
+            </svg>
+            <canvas id="wheel-canvas"></canvas>
+          </div>
         </div>
-        <div class="wheel-label" id="wheel-label">CLICK WHEEL TO SPIN</div>
+        <div class="wheel-label" id="wheel-label">✦ CLICK WHEEL TO SPIN ✦</div>
       </div>
 
     </div>
@@ -701,69 +749,247 @@ function initWheel() {
   wheelDrawn = true;
   const canvas = document.getElementById('wheel-canvas');
   const size = parseInt(getComputedStyle(document.querySelector('.wheel-container')).width);
-  canvas.width = size;
-  canvas.height = size;
+  canvas.width = size * (window.devicePixelRatio||1);
+  canvas.height = size * (window.devicePixelRatio||1);
+  canvas.style.width = size + 'px';
+  canvas.style.height = size + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(window.devicePixelRatio||1, window.devicePixelRatio||1);
   drawWheel(canvas, wheelAngle);
   document.getElementById('wheel-container').addEventListener('click', spinWheel);
 }
 
-const segColors = [
-  '#FF3B3B','#FFC107','#2196F3','#FF6B35',
-  '#6FE7FF','#43A047','#9C27B0','#FF8F00'
+const NUM_SEGS = 12;
+
+// Each segment: two gradient colors (vibrant pairs)
+const SEG_PALETTES = [
+  ['#FF416C','#FF4B2B'],  // hot red-orange
+  ['#F7971E','#FFD200'],  // amber-gold
+  ['#11998E','#38EF7D'],  // emerald-mint
+  ['#4776E6','#8E54E9'],  // electric blue-violet
+  ['#F953C6','#B91D73'],  // magenta-rose
+  ['#43CEA2','#185A9D'],  // teal-navy
+  ['#FF8008','#FFC837'],  // mango-gold
+  ['#C94B4B','#4B134F'],  // crimson-deep purple
+  ['#00B4DB','#0083B0'],  // sky-ocean
+  ['#FDC830','#F37335'],  // sun-tangerine
+  ['#DA4453','#89216B'],  // ruby-plum
+  ['#1D976C','#93F9B9'],  // jungle-lime
 ];
+
+// Gem shapes drawn at mid-radius of each segment
+const GEM_SHAPES = ['diamond','circle','star4','hexagon','triangle','teardrop'];
+
+function drawGem(ctx, x, y, r, shape, color, angle) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.shadowColor = 'rgba(255,255,255,0.9)';
+  ctx.shadowBlur = 10;
+  const g = ctx.createRadialGradient(-r*0.3,-r*0.3,0,0,0,r);
+  g.addColorStop(0,'rgba(255,255,255,0.95)');
+  g.addColorStop(0.35, color);
+  g.addColorStop(1, 'rgba(0,0,0,0.3)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  switch(shape) {
+    case 'diamond':
+      ctx.moveTo(0,-r); ctx.lineTo(r*0.6,0); ctx.lineTo(0,r); ctx.lineTo(-r*0.6,0);
+      break;
+    case 'circle':
+      ctx.arc(0,0,r,0,Math.PI*2);
+      break;
+    case 'star4':
+      for(let i=0;i<8;i++){
+        const a=i*Math.PI/4, rad=i%2===0?r:r*0.45;
+        i===0?ctx.moveTo(Math.cos(a)*rad,Math.sin(a)*rad):ctx.lineTo(Math.cos(a)*rad,Math.sin(a)*rad);
+      }
+      break;
+    case 'hexagon':
+      for(let i=0;i<6;i++){const a=i*Math.PI/3;i===0?ctx.moveTo(Math.cos(a)*r,Math.sin(a)*r):ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);}
+      break;
+    case 'triangle':
+      ctx.moveTo(0,-r); ctx.lineTo(r*0.87,r*0.5); ctx.lineTo(-r*0.87,r*0.5);
+      break;
+    case 'teardrop':
+      ctx.arc(0, -r*0.1, r*0.6, 0, Math.PI);
+      ctx.quadraticCurveTo(-r*0.6, -r*0.2, 0, -r);
+      ctx.quadraticCurveTo(r*0.6, -r*0.2, r*0.6, -r*0.1+r*0.6);
+      break;
+  }
+  ctx.closePath();
+  ctx.fill();
+  // Specular highlight
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.beginPath(); ctx.arc(-r*0.22,-r*0.22,r*0.22,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
 
 function drawWheel(canvas, angle) {
   const ctx = canvas.getContext('2d');
-  const cx = canvas.width/2, cy = canvas.height/2, r = cx - 2;
-  const segs = prize.wheel;
-  const arc = (Math.PI*2)/segs.length;
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.width / dpr;
+  const cx = W/2, cy = W/2;
+  const r = cx - 4;
+  const arc = (Math.PI*2) / NUM_SEGS;
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // Shadow ring
+  // ── Outer shadow glow ──
   ctx.save();
-  ctx.shadowColor = 'rgba(255,193,7,0.5)';
-  ctx.shadowBlur = 18;
-  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fillStyle='#0a1a4a'; ctx.fill();
+  ctx.shadowColor = 'rgba(255,193,7,0.6)';
+  ctx.shadowBlur = 30;
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+  ctx.fillStyle = '#000'; ctx.fill();
   ctx.restore();
 
-  segs.forEach((label,i) => {
+  // ── Segments with radial gradients ──
+  for(let i=0; i<NUM_SEGS; i++){
     const start = angle + i*arc - Math.PI/2;
     const end   = start + arc;
+    const pal   = SEG_PALETTES[i % SEG_PALETTES.length];
+    const midA  = start + arc/2;
+    const gx1   = cx + Math.cos(midA) * r * 0.1;
+    const gy1   = cy + Math.sin(midA) * r * 0.1;
+    const gx2   = cx + Math.cos(midA) * r * 0.9;
+    const gy2   = cy + Math.sin(midA) * r * 0.9;
+
+    const grad = ctx.createLinearGradient(gx1,gy1,gx2,gy2);
+    grad.addColorStop(0, pal[0]);
+    grad.addColorStop(1, pal[1]);
+
     ctx.beginPath();
     ctx.moveTo(cx,cy);
     ctx.arc(cx,cy,r,start,end);
     ctx.closePath();
-    ctx.fillStyle = segColors[i % segColors.length];
+    ctx.fillStyle = grad;
     ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
 
-    // Label
+    // Subtle inner segment edge highlight
     ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(start + arc/2);
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#fff';
-    ctx.font = `bold ${Math.max(10, r*0.12)}px "Barlow Condensed", sans-serif`;
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = 4;
-    ctx.fillText(label, r - 8, 4);
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,start,end); ctx.closePath();
+    ctx.clip();
+    // Radial shine from center-edge
+    const shine = ctx.createRadialGradient(cx,cy,r*0.3,cx,cy,r);
+    shine.addColorStop(0,'rgba(255,255,255,0.18)');
+    shine.addColorStop(0.5,'rgba(255,255,255,0.06)');
+    shine.addColorStop(1,'rgba(0,0,0,0.25)');
+    ctx.fillStyle = shine;
+    ctx.fillRect(-cx,-cy,W*2,W*2);
     ctx.restore();
-  });
+  }
 
-  // Center hub
-  ctx.beginPath(); ctx.arc(cx,cy,r*0.12,0,Math.PI*2);
-  const hub = ctx.createRadialGradient(cx,cy,0,cx,cy,r*0.12);
-  hub.addColorStop(0,'#FFE082'); hub.addColorStop(1,'#FF8F00');
-  ctx.fillStyle = hub; ctx.fill();
-  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+  // ── Divider lines (spokes) ──
+  for(let i=0; i<NUM_SEGS; i++){
+    const a = angle + i*arc - Math.PI/2;
+    const spokeGrad = ctx.createLinearGradient(
+      cx, cy,
+      cx + Math.cos(a)*r, cy + Math.sin(a)*r
+    );
+    spokeGrad.addColorStop(0,'rgba(255,255,255,0.0)');
+    spokeGrad.addColorStop(0.35,'rgba(255,255,255,0.55)');
+    spokeGrad.addColorStop(1,'rgba(255,255,255,0.12)');
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.lineTo(cx + Math.cos(a)*r, cy + Math.sin(a)*r);
+    ctx.strokeStyle = spokeGrad;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // ── Gems on each segment ──
+  const gemR = r * 0.085;
+  const gemDist = r * 0.62;
+  for(let i=0; i<NUM_SEGS; i++){
+    const midA  = angle + i*arc - Math.PI/2 + arc/2;
+    const gx    = cx + Math.cos(midA)*gemDist;
+    const gy    = cy + Math.sin(midA)*gemDist;
+    const shape = GEM_SHAPES[i % GEM_SHAPES.length];
+    // gem color = complementary accent
+    const pal   = SEG_PALETTES[(i+6) % SEG_PALETTES.length];
+    drawGem(ctx, gx, gy, gemR, shape, pal[0], midA + Math.PI/2);
+  }
+
+  // ── Metallic outer rim ──
+  const rimWidth = r * 0.055;
+  const rimGrad = ctx.createLinearGradient(cx-r,cy,cx+r,cy);
+  rimGrad.addColorStop(0,   '#B8860B');
+  rimGrad.addColorStop(0.2, '#FFE082');
+  rimGrad.addColorStop(0.4, '#FFC107');
+  rimGrad.addColorStop(0.6, '#FFD700');
+  rimGrad.addColorStop(0.8, '#FFE082');
+  rimGrad.addColorStop(1,   '#B8860B');
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+  ctx.strokeStyle = rimGrad;
+  ctx.lineWidth = rimWidth;
+  ctx.stroke();
+
+  // Rim studs / bolts
+  const studCount = NUM_SEGS * 2;
+  for(let i=0; i<studCount; i++){
+    const a = angle + (i/studCount)*Math.PI*2;
+    const sx = cx + Math.cos(a)*(r - rimWidth/2);
+    const sy = cy + Math.sin(a)*(r - rimWidth/2);
+    const studG = ctx.createRadialGradient(sx-1,sy-1,0,sx,sy,rimWidth*0.38);
+    studG.addColorStop(0,'#FFFDE7');
+    studG.addColorStop(0.5,'#FFC107');
+    studG.addColorStop(1,'#8B6914');
+    ctx.beginPath(); ctx.arc(sx,sy,rimWidth*0.38,0,Math.PI*2);
+    ctx.fillStyle = studG; ctx.fill();
+  }
+
+  // ── Inner rim ring ──
+  ctx.beginPath(); ctx.arc(cx,cy,r*0.18,0,Math.PI*2);
+  ctx.strokeStyle = 'rgba(255,220,80,0.45)';
+  ctx.lineWidth = 2; ctx.stroke();
+
+  // ── Center jeweled hub ──
+  const hubR = r*0.13;
+  // Outer hub ring
+  const hubRim = ctx.createLinearGradient(cx-hubR,cy-hubR,cx+hubR,cy+hubR);
+  hubRim.addColorStop(0,'#FFE082');
+  hubRim.addColorStop(0.5,'#FF8F00');
+  hubRim.addColorStop(1,'#FFD700');
+  ctx.beginPath(); ctx.arc(cx,cy,hubR,0,Math.PI*2);
+  ctx.fillStyle = hubRim;
+  ctx.shadowColor = 'rgba(255,193,7,0.8)';
+  ctx.shadowBlur = 20;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Hub facets
+  for(let i=0; i<8; i++){
+    const a = angle*2 + i*Math.PI/4;
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,hubR-2,a,a+Math.PI/4);
+    ctx.closePath();
+    ctx.fillStyle = i%2===0 ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)';
+    ctx.fill();
+  }
+
+  // Hub center gem
+  const cg = ctx.createRadialGradient(cx-hubR*0.3,cy-hubR*0.3,0,cx,cy,hubR*0.6);
+  cg.addColorStop(0,'rgba(255,255,255,0.98)');
+  cg.addColorStop(0.4,'#6FE7FF');
+  cg.addColorStop(0.8,'#1565C0');
+  cg.addColorStop(1,'#0D47A1');
+  ctx.beginPath(); ctx.arc(cx,cy,hubR*0.55,0,Math.PI*2);
+  ctx.fillStyle = cg;
+  ctx.shadowColor = 'rgba(111,231,255,0.9)';
+  ctx.shadowBlur = 14;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Hub specular
+  ctx.beginPath(); ctx.arc(cx-hubR*0.2,cy-hubR*0.2,hubR*0.18,0,Math.PI*2);
+  ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
 }
 
 function spinWheel() {
   if (wheelSpinning) return;
   wheelSpinning = true;
-  document.getElementById('wheel-label').textContent = 'SPINNING...';
+  document.getElementById('wheel-label').textContent = '✦ SPINNING... ✦';
 
   const canvas = document.getElementById('wheel-canvas');
   const totalRotation = (Math.PI*2) * (5 + Math.random()*3);
