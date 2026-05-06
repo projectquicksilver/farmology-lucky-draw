@@ -342,65 +342,48 @@ html, body {
 }
 #wheel-zone.active { display: flex; }
 
-/* Outer glow halo around entire wheel assembly */
 .wheel-halo {
   position: relative;
   display: flex; align-items: center; justify-content: center;
 }
 .wheel-halo::before {
   content: '';
-  position: absolute;
-  inset: -20px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,193,7,0.18) 0%, rgba(79,195,247,0.08) 50%, transparent 75%);
-  animation: haloBreath 2s ease-in-out infinite;
-  z-index: 0;
+  position: absolute; inset: -20px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,193,7,0.2) 0%, transparent 70%);
+  animation: haloBreath 2s ease-in-out infinite; z-index: 0;
 }
-@keyframes haloBreath {
-  0%,100% { transform: scale(0.95); opacity: 0.7; }
-  50%      { transform: scale(1.08); opacity: 1; }
-}
+@keyframes haloBreath { 0%,100%{transform:scale(0.95);opacity:0.7;} 50%{transform:scale(1.08);opacity:1;} }
 
 .wheel-container {
   position: relative;
-  width: clamp(200px, 30vw, 270px);
-  height: clamp(200px, 30vw, 270px);
-  cursor: pointer;
-  z-index: 1;
+  width: clamp(220px, 32vw, 300px);
+  height: clamp(220px, 32vw, 300px);
+  cursor: pointer; z-index: 1;
 }
-.wheel-container canvas {
-  border-radius: 50%;
-  display: block;
-}
+.wheel-container canvas { display: block; border-radius: 50%; }
 
-/* Outer decorative ring (CSS, not canvas) */
-.wheel-outer-ring {
-  position: absolute;
-  inset: -8px;
-  border-radius: 50%;
-  border: 3px solid transparent;
-  background: linear-gradient(#061A4A,#061A4A) padding-box,
-              conic-gradient(#FFD700, #FF8F00, #FFE082, #FFC107, #FF6B35, #FFD700) border-box;
-  animation: ringRotate 8s linear infinite;
-  pointer-events: none;
-  z-index: 3;
-}
-@keyframes ringRotate { to { filter: hue-rotate(30deg); } }
-
-/* Pointer arrow — styled as a metallic spike */
+/* Red triangle pointer — exactly like the image */
 .wheel-arrow {
   position: absolute;
-  top: -22px; left: 50%;
+  top: -18px; left: 50%;
   transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 14px solid transparent;
+  border-right: 14px solid transparent;
+  border-top: 30px solid #E63946;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.5));
   z-index: 10;
-  width: 28px; height: 36px;
-  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.7));
 }
+
+/* Remove SVG arrow — not needed */
+.wheel-container svg.wheel-arrow { display: none; }
+
+.wheel-outer-ring { display: none; }
 
 .wheel-label {
   font-family: 'Barlow Condensed', sans-serif;
   font-size: clamp(12px, 1.8vw, 15px); font-weight: 900;
-  color: rgba(255,255,255,0.55); letter-spacing: 3px; text-transform: uppercase;
+  color: rgba(255,255,255,0.6); letter-spacing: 3px; text-transform: uppercase;
   animation: pulse 1.5s ease-in-out infinite;
   text-shadow: 0 0 20px rgba(255,193,7,0.4);
 }
@@ -584,18 +567,7 @@ html, body {
       <div id="wheel-zone">
         <div class="wheel-halo">
           <div class="wheel-container" id="wheel-container">
-            <div class="wheel-outer-ring"></div>
-            <svg class="wheel-arrow" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="arrowGrad" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stop-color="#FFE082"/>
-                  <stop offset="50%" stop-color="#FFC107"/>
-                  <stop offset="100%" stop-color="#FF8F00"/>
-                </linearGradient>
-              </defs>
-              <polygon points="14,36 0,8 14,0 28,8" fill="url(#arrowGrad)" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
-              <ellipse cx="14" cy="8" rx="5" ry="5" fill="#FFE082" opacity="0.8"/>
-            </svg>
+            <div class="wheel-arrow"></div>
             <canvas id="wheel-canvas"></canvas>
           </div>
         </div>
@@ -744,246 +716,150 @@ let wheelSpinning = false;
 let wheelAngle = 0;
 let wheelDrawn = false;
 
+/* ─────────────────────────────────────────
+   WHEEL  –  8 vivid flat-colour segments
+   + emoji icon on each, white SPIN hub
+───────────────────────────────────────── */
+const SEGS = [
+  { color:'#E63950', emoji:'🏆' },
+  { color:'#F5A623', emoji:'⭐' },
+  { color:'#2196F3', emoji:'🎁' },
+  { color:'#11B87F', emoji:'🎯' },
+  { color:'#9B27AF', emoji:'💎' },
+  { color:'#FF6B35', emoji:'🌟' },
+  { color:'#1565C0', emoji:'🎊' },
+  { color:'#E91E8C', emoji:'🏅' },
+];
+const NUM_SEGS = SEGS.length;
+
+/* Pre-load emoji by drawing them to an offscreen canvas */
+const EMOJI_SIZE = 40;
+let emojiImages = [];
+
+function preloadEmojis(callback) {
+  emojiImages = [];
+  let done = 0;
+  SEGS.forEach((seg, i) => {
+    const off = document.createElement('canvas');
+    off.width = off.height = EMOJI_SIZE;
+    const c = off.getContext('2d');
+    c.font = (EMOJI_SIZE * 0.78) + 'px serif';
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillText(seg.emoji, EMOJI_SIZE/2, EMOJI_SIZE/2);
+    const img = new Image();
+    img.onload = () => { emojiImages[i] = img; done++; if(done===SEGS.length) callback(); };
+    img.src = off.toDataURL();
+  });
+}
+
 function initWheel() {
   if (wheelDrawn) return;
   wheelDrawn = true;
-  const canvas = document.getElementById('wheel-canvas');
-  const size = parseInt(getComputedStyle(document.querySelector('.wheel-container')).width);
-  canvas.width = size * (window.devicePixelRatio||1);
-  canvas.height = size * (window.devicePixelRatio||1);
-  canvas.style.width = size + 'px';
-  canvas.style.height = size + 'px';
-  const ctx = canvas.getContext('2d');
-  ctx.scale(window.devicePixelRatio||1, window.devicePixelRatio||1);
-  drawWheel(canvas, wheelAngle);
+  preloadEmojis(() => {
+    const canvas = document.getElementById('wheel-canvas');
+    /* Use a fixed 300px canvas — simple and reliable */
+    const SIZE = Math.min(document.querySelector('.wheel-container').offsetWidth, 300);
+    canvas.width  = SIZE;
+    canvas.height = SIZE;
+    drawWheel(canvas, wheelAngle);
+  });
   document.getElementById('wheel-container').addEventListener('click', spinWheel);
 }
 
-const NUM_SEGS = 12;
-
-// Each segment: two gradient colors (vibrant pairs)
-const SEG_PALETTES = [
-  ['#FF416C','#FF4B2B'],  // hot red-orange
-  ['#F7971E','#FFD200'],  // amber-gold
-  ['#11998E','#38EF7D'],  // emerald-mint
-  ['#4776E6','#8E54E9'],  // electric blue-violet
-  ['#F953C6','#B91D73'],  // magenta-rose
-  ['#43CEA2','#185A9D'],  // teal-navy
-  ['#FF8008','#FFC837'],  // mango-gold
-  ['#C94B4B','#4B134F'],  // crimson-deep purple
-  ['#00B4DB','#0083B0'],  // sky-ocean
-  ['#FDC830','#F37335'],  // sun-tangerine
-  ['#DA4453','#89216B'],  // ruby-plum
-  ['#1D976C','#93F9B9'],  // jungle-lime
-];
-
-// Gem shapes drawn at mid-radius of each segment
-const GEM_SHAPES = ['diamond','circle','star4','hexagon','triangle','teardrop'];
-
-function drawGem(ctx, x, y, r, shape, color, angle) {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(angle);
-  ctx.shadowColor = 'rgba(255,255,255,0.9)';
-  ctx.shadowBlur = 10;
-  const g = ctx.createRadialGradient(-r*0.3,-r*0.3,0,0,0,r);
-  g.addColorStop(0,'rgba(255,255,255,0.95)');
-  g.addColorStop(0.35, color);
-  g.addColorStop(1, 'rgba(0,0,0,0.3)');
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  switch(shape) {
-    case 'diamond':
-      ctx.moveTo(0,-r); ctx.lineTo(r*0.6,0); ctx.lineTo(0,r); ctx.lineTo(-r*0.6,0);
-      break;
-    case 'circle':
-      ctx.arc(0,0,r,0,Math.PI*2);
-      break;
-    case 'star4':
-      for(let i=0;i<8;i++){
-        const a=i*Math.PI/4, rad=i%2===0?r:r*0.45;
-        i===0?ctx.moveTo(Math.cos(a)*rad,Math.sin(a)*rad):ctx.lineTo(Math.cos(a)*rad,Math.sin(a)*rad);
-      }
-      break;
-    case 'hexagon':
-      for(let i=0;i<6;i++){const a=i*Math.PI/3;i===0?ctx.moveTo(Math.cos(a)*r,Math.sin(a)*r):ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);}
-      break;
-    case 'triangle':
-      ctx.moveTo(0,-r); ctx.lineTo(r*0.87,r*0.5); ctx.lineTo(-r*0.87,r*0.5);
-      break;
-    case 'teardrop':
-      ctx.arc(0, -r*0.1, r*0.6, 0, Math.PI);
-      ctx.quadraticCurveTo(-r*0.6, -r*0.2, 0, -r);
-      ctx.quadraticCurveTo(r*0.6, -r*0.2, r*0.6, -r*0.1+r*0.6);
-      break;
-  }
-  ctx.closePath();
-  ctx.fill();
-  // Specular highlight
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  ctx.beginPath(); ctx.arc(-r*0.22,-r*0.22,r*0.22,0,Math.PI*2); ctx.fill();
-  ctx.restore();
-}
-
 function drawWheel(canvas, angle) {
-  const ctx = canvas.getContext('2d');
-  const dpr = window.devicePixelRatio || 1;
-  const W = canvas.width / dpr;
-  const cx = W/2, cy = W/2;
-  const r = cx - 4;
-  const arc = (Math.PI*2) / NUM_SEGS;
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const ctx  = canvas.getContext('2d');
+  const S    = canvas.width;
+  const cx   = S / 2, cy = S / 2;
+  const R    = S / 2 - 8;          /* wheel radius */
+  const ARC  = (Math.PI * 2) / NUM_SEGS;
 
-  // ── Outer shadow glow ──
+  ctx.clearRect(0, 0, S, S);
+
+  /* ── 1. Outer glow ring ── */
   ctx.save();
-  ctx.shadowColor = 'rgba(255,193,7,0.6)';
-  ctx.shadowBlur = 30;
-  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
-  ctx.fillStyle = '#000'; ctx.fill();
+  ctx.shadowColor = 'rgba(255,200,0,0.7)';
+  ctx.shadowBlur  = 22;
+  ctx.beginPath(); ctx.arc(cx, cy, R + 6, 0, Math.PI*2);
+  ctx.strokeStyle = '#FFD700';
+  ctx.lineWidth   = 5;
+  ctx.stroke();
   ctx.restore();
 
-  // ── Segments with radial gradients ──
-  for(let i=0; i<NUM_SEGS; i++){
-    const start = angle + i*arc - Math.PI/2;
-    const end   = start + arc;
-    const pal   = SEG_PALETTES[i % SEG_PALETTES.length];
-    const midA  = start + arc/2;
-    const gx1   = cx + Math.cos(midA) * r * 0.1;
-    const gy1   = cy + Math.sin(midA) * r * 0.1;
-    const gx2   = cx + Math.cos(midA) * r * 0.9;
-    const gy2   = cy + Math.sin(midA) * r * 0.9;
-
-    const grad = ctx.createLinearGradient(gx1,gy1,gx2,gy2);
-    grad.addColorStop(0, pal[0]);
-    grad.addColorStop(1, pal[1]);
+  /* ── 2. Coloured segments ── */
+  for (let i = 0; i < NUM_SEGS; i++) {
+    const start = angle + i * ARC - Math.PI / 2;
+    const end   = start + ARC;
 
     ctx.beginPath();
-    ctx.moveTo(cx,cy);
-    ctx.arc(cx,cy,r,start,end);
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, R, start, end);
     ctx.closePath();
-    ctx.fillStyle = grad;
+    ctx.fillStyle = SEGS[i].color;
     ctx.fill();
 
-    // Subtle inner segment edge highlight
-    ctx.save();
-    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,start,end); ctx.closePath();
-    ctx.clip();
-    // Radial shine from center-edge
-    const shine = ctx.createRadialGradient(cx,cy,r*0.3,cx,cy,r);
-    shine.addColorStop(0,'rgba(255,255,255,0.18)');
-    shine.addColorStop(0.5,'rgba(255,255,255,0.06)');
-    shine.addColorStop(1,'rgba(0,0,0,0.25)');
-    ctx.fillStyle = shine;
-    ctx.fillRect(-cx,-cy,W*2,W*2);
-    ctx.restore();
-  }
-
-  // ── Divider lines (spokes) ──
-  for(let i=0; i<NUM_SEGS; i++){
-    const a = angle + i*arc - Math.PI/2;
-    const spokeGrad = ctx.createLinearGradient(
-      cx, cy,
-      cx + Math.cos(a)*r, cy + Math.sin(a)*r
-    );
-    spokeGrad.addColorStop(0,'rgba(255,255,255,0.0)');
-    spokeGrad.addColorStop(0.35,'rgba(255,255,255,0.55)');
-    spokeGrad.addColorStop(1,'rgba(255,255,255,0.12)');
+    /* thin white divider line */
     ctx.beginPath();
-    ctx.moveTo(cx,cy);
-    ctx.lineTo(cx + Math.cos(a)*r, cy + Math.sin(a)*r);
-    ctx.strokeStyle = spokeGrad;
-    ctx.lineWidth = 2;
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(start) * R, cy + Math.sin(start) * R);
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.lineWidth   = 2.5;
     ctx.stroke();
   }
 
-  // ── Gems on each segment ──
-  const gemR = r * 0.085;
-  const gemDist = r * 0.62;
-  for(let i=0; i<NUM_SEGS; i++){
-    const midA  = angle + i*arc - Math.PI/2 + arc/2;
-    const gx    = cx + Math.cos(midA)*gemDist;
-    const gy    = cy + Math.sin(midA)*gemDist;
-    const shape = GEM_SHAPES[i % GEM_SHAPES.length];
-    // gem color = complementary accent
-    const pal   = SEG_PALETTES[(i+6) % SEG_PALETTES.length];
-    drawGem(ctx, gx, gy, gemR, shape, pal[0], midA + Math.PI/2);
-  }
-
-  // ── Metallic outer rim ──
-  const rimWidth = r * 0.055;
-  const rimGrad = ctx.createLinearGradient(cx-r,cy,cx+r,cy);
-  rimGrad.addColorStop(0,   '#B8860B');
-  rimGrad.addColorStop(0.2, '#FFE082');
-  rimGrad.addColorStop(0.4, '#FFC107');
-  rimGrad.addColorStop(0.6, '#FFD700');
-  rimGrad.addColorStop(0.8, '#FFE082');
-  rimGrad.addColorStop(1,   '#B8860B');
-  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
-  ctx.strokeStyle = rimGrad;
-  ctx.lineWidth = rimWidth;
+  /* ── 3. Outer border ring ── */
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.lineWidth   = 4;
   ctx.stroke();
 
-  // Rim studs / bolts
-  const studCount = NUM_SEGS * 2;
-  for(let i=0; i<studCount; i++){
-    const a = angle + (i/studCount)*Math.PI*2;
-    const sx = cx + Math.cos(a)*(r - rimWidth/2);
-    const sy = cy + Math.sin(a)*(r - rimWidth/2);
-    const studG = ctx.createRadialGradient(sx-1,sy-1,0,sx,sy,rimWidth*0.38);
-    studG.addColorStop(0,'#FFFDE7');
-    studG.addColorStop(0.5,'#FFC107');
-    studG.addColorStop(1,'#8B6914');
-    ctx.beginPath(); ctx.arc(sx,sy,rimWidth*0.38,0,Math.PI*2);
-    ctx.fillStyle = studG; ctx.fill();
+  /* ── 4. Emoji icons on each segment ── */
+  const iconDist = R * 0.62;
+  const iconSize = R * 0.28;
+  for (let i = 0; i < NUM_SEGS; i++) {
+    const midA = angle + i * ARC - Math.PI/2 + ARC/2;
+    const ix   = cx + Math.cos(midA) * iconDist;
+    const iy   = cy + Math.sin(midA) * iconDist;
+
+    if (emojiImages[i]) {
+      ctx.drawImage(emojiImages[i], ix - iconSize/2, iy - iconSize/2, iconSize, iconSize);
+    } else {
+      /* fallback plain text emoji if image not ready */
+      ctx.save();
+      ctx.font = (iconSize * 0.85) + 'px serif';
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(SEGS[i].emoji, ix, iy);
+      ctx.restore();
+    }
   }
 
-  // ── Inner rim ring ──
-  ctx.beginPath(); ctx.arc(cx,cy,r*0.18,0,Math.PI*2);
-  ctx.strokeStyle = 'rgba(255,220,80,0.45)';
-  ctx.lineWidth = 2; ctx.stroke();
+  /* ── 5. White center SPIN hub ── */
+  const hubR = R * 0.20;
 
-  // ── Center jeweled hub ──
-  const hubR = r*0.13;
-  // Outer hub ring
-  const hubRim = ctx.createLinearGradient(cx-hubR,cy-hubR,cx+hubR,cy+hubR);
-  hubRim.addColorStop(0,'#FFE082');
-  hubRim.addColorStop(0.5,'#FF8F00');
-  hubRim.addColorStop(1,'#FFD700');
-  ctx.beginPath(); ctx.arc(cx,cy,hubR,0,Math.PI*2);
-  ctx.fillStyle = hubRim;
-  ctx.shadowColor = 'rgba(255,193,7,0.8)';
-  ctx.shadowBlur = 20;
+  /* shadow behind hub */
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.35)';
+  ctx.shadowBlur  = 12;
+  ctx.beginPath(); ctx.arc(cx, cy, hubR, 0, Math.PI*2);
+  ctx.fillStyle = '#ffffff';
   ctx.fill();
-  ctx.shadowBlur = 0;
+  ctx.restore();
 
-  // Hub facets
-  for(let i=0; i<8; i++){
-    const a = angle*2 + i*Math.PI/4;
-    ctx.beginPath();
-    ctx.moveTo(cx,cy);
-    ctx.arc(cx,cy,hubR-2,a,a+Math.PI/4);
-    ctx.closePath();
-    ctx.fillStyle = i%2===0 ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)';
-    ctx.fill();
-  }
+  /* gold border */
+  ctx.beginPath(); ctx.arc(cx, cy, hubR, 0, Math.PI*2);
+  ctx.strokeStyle = '#FFD700';
+  ctx.lineWidth   = 3;
+  ctx.stroke();
 
-  // Hub center gem
-  const cg = ctx.createRadialGradient(cx-hubR*0.3,cy-hubR*0.3,0,cx,cy,hubR*0.6);
-  cg.addColorStop(0,'rgba(255,255,255,0.98)');
-  cg.addColorStop(0.4,'#6FE7FF');
-  cg.addColorStop(0.8,'#1565C0');
-  cg.addColorStop(1,'#0D47A1');
-  ctx.beginPath(); ctx.arc(cx,cy,hubR*0.55,0,Math.PI*2);
-  ctx.fillStyle = cg;
-  ctx.shadowColor = 'rgba(111,231,255,0.9)';
-  ctx.shadowBlur = 14;
-  ctx.fill();
-  ctx.shadowBlur = 0;
-
-  // Hub specular
-  ctx.beginPath(); ctx.arc(cx-hubR*0.2,cy-hubR*0.2,hubR*0.18,0,Math.PI*2);
-  ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
+  /* SPIN text */
+  ctx.save();
+  ctx.font         = `900 ${Math.round(hubR * 0.52)}px 'Barlow Condensed', sans-serif`;
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle    = '#333';
+  ctx.fillText('SPIN', cx, cy);
+  ctx.restore();
 }
 
 function spinWheel() {
